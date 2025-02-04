@@ -20,6 +20,8 @@ resource "aws_subnet" "subnet_1" {
   availability_zone = "us-east-1a"
   tags = {
     Name = "subnet-1"
+    "kubernetes.io/cluster/devops-demo" = "shared"
+    "kubernetes.io/role/elb" = "1"
   }
 }
 
@@ -29,6 +31,8 @@ resource "aws_subnet" "subnet_2" {
   availability_zone = "us-east-1b"
   tags = {
     Name = "subnet-2"
+    "kubernetes.io/cluster/devops-demo" = "shared"
+    "kubernetes.io/role/elb" = "1"
   }
 }
 
@@ -87,6 +91,8 @@ resource "aws_eks_node_group" "eks_node_group" {
     min_size     = 1
     max_size     = 1
   }
+
+  instance_types = ["t3.medium"]
 
   tags = {
     Name = "eks-node-group"
