@@ -1,100 +1,44 @@
-# Provider configuration
 provider "aws" {
   region = "us-east-1"
 }
 
-# VPC Configuration
-resource "aws_vpc" "main" {
-  cidr_block = "10.0.0.0/16"
-  enable_dns_support = true
+resource "aws_vpc" "eks_vpc" {
+  cidr_block           = "10.0.0.0/16"
+  enable_dns_support   = true
   enable_dns_hostnames = true
-  tags = {
-    Name = "main-vpc"
-  }
+  tags = { Name = "eks-vpc" }
 }
 
-# Subnet Configuration
-resource "aws_subnet" "subnet_1" {
-  vpc_id     = aws_vpc.main.id
-  cidr_block = "10.0.1.0/24"
+resource "aws_subnet" "eks_subnet_a" {
+  vpc_id            = aws_vpc.eks_vpc.id
+  cidr_block        = "10.0.1.0/24"
   availability_zone = "us-east-1a"
-  tags = {
-    Name = "subnet-1"
-    "kubernetes.io/cluster/devops-demo" = "shared"
-    "kubernetes.io/role/elb" = "1"
-  }
 }
 
-resource "aws_subnet" "subnet_2" {
-  vpc_id     = aws_vpc.main.id
-  cidr_block = "10.0.2.0/24"
+resource "aws_subnet" "eks_subnet_b" {
+  vpc_id            = aws_vpc.eks_vpc.id
+  cidr_block        = "10.0.2.0/24"
   availability_zone = "us-east-1b"
-  tags = {
-    Name = "subnet-2"
-    "kubernetes.io/cluster/devops-demo" = "shared"
-    "kubernetes.io/role/elb" = "1"
-  }
 }
 
-# Security Group for EKS
-resource "aws_security_group" "eks_sg" {
-  vpc_id = aws_vpc.main.id
-
-  ingress {
-    from_port   = 0
-    to_port     = 65535
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 65535
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name = "eks-security-group"
-  }
-}
-
-# Using existing IAM Role for EKS Cluster
-data "aws_iam_role" "existing_eks_cluster_role" {
-  name = "awsfullaccessrole"
-}
-
-# EKS Cluster
-resource "aws_eks_cluster" "eks_cluster" {
+resource "aws_eks_cluster" "devops_demo" {
   name     = "devops-demo"
-  role_arn = data.aws_iam_role.existing_eks_cluster_role.arn
+  role_arn = "arn:aws:iam::443370691052:role/awsfullaccessrole" # Use your created role
 
   vpc_config {
-    subnet_ids         = [aws_subnet.subnet_1.id, aws_subnet.subnet_2.id]
-    security_group_ids = [aws_security_group.eks_sg.id]
-  }
-
-  tags = {
-    Name = "devops-demo"
+    subnet_ids = [aws_subnet.eks_subnet_a.id, aws_subnet.eks_subnet_b.id]
   }
 }
 
-# EKS Node Group
-resource "aws_eks_node_group" "eks_node_group" {
-  cluster_name    = aws_eks_cluster.eks_cluster.name
-  node_group_name = "my-node-group"
-  node_role_arn   = data.aws_iam_role.existing_eks_cluster_role.arn
-  subnet_ids      = [aws_subnet.subnet_1.id, aws_subnet.subnet_2.id]
-
+resource "aws_eks_node_group" "devops_demo_nodes" {
+  cluster_name    = aws_eks_cluster.devops_demo.name
+  node_group_name = "devops-demo-nodes"
+  node_role_arn   = "arn:aws:iam::443370691052:role/awsfullaccessrole" # Use your created role
+  subnet_ids      = [aws_subnet.eks_subnet_a.id, aws_subnet.eks_subnet_b.id]
+  instance_types  = ["t3.medium"]
   scaling_config {
-    desired_size = 1
+    desired_size = 2
+    max_size     = 3
     min_size     = 1
-    max_size     = 1
-  }
-
-  instance_types = ["t3.medium"]
-
-  tags = {
-    Name = "eks-node-group"
   }
 }
